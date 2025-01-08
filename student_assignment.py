@@ -45,15 +45,6 @@ def create_llm():
         temperature=gpt_config['temperature']
     )
 
-def filter_json_object(content):
-    try:
-        match = re.compile(r'\{.*\}', re.DOTALL).search(content)
-        if match:
-            return json.loads(match.group(0))
-    except Exception as e:
-        print(f"Error: {e}")
-    return None
-
 @tool
 def get_holidays(country, year, month) -> json:
     '''獲取指定國家某月份的節假日資訊。country 是國家代碼(ISO 3166-1 alpha-2)。例如 'TW' 代表台灣。year 是年。month 是月'''
@@ -83,6 +74,9 @@ def get_holidays(country, year, month) -> json:
         print(f"Request error：{response.status_code}\n{response.text}")
     return json.loads('{"Result": {}}')
 
+def format_json(data):
+    return json.dumps(data, indent=4, ensure_ascii=False)
+
 holidays_json_format = '{{"Result": [{{ "date": "yyyy-MM-dd", "name": "節日名稱" }}, {{ "date": "yyyy-MM-dd", "name": "節日名稱" }}] }}'
 
 def generate_hw01(question):
@@ -92,8 +86,7 @@ def generate_hw01(question):
         ('human', '{input}')
     ])
     response = create_llm().invoke(prompt_template.format_prompt(input=question).to_messages())
-    result = JsonOutputParser().invoke(response)
-    return result if result else json.loads('{"Result":{}}')
+    return format_json(JsonOutputParser().invoke(response))
     
 def generate_hw02(question):
     prompt_template = ChatPromptTemplate.from_messages([
@@ -108,8 +101,7 @@ def generate_hw02(question):
         tools=tools,
         verbose=True
     ).invoke({'input': question})
-    result = JsonOutputParser().parse(response['output'])
-    return result if result else json.loads('{"Result":[]}')
+    return format_json(JsonOutputParser().parse(response['output']))
     
 def generate_hw03(question2, question3):
     prompt_template = ChatPromptTemplate.from_messages([
@@ -140,8 +132,7 @@ def generate_hw03(question2, question3):
         {'input': f'{question3}\n 回答是否需要將節日新增到節日清單中。根據問題判斷該節日是否存在於清單中，如果不存在，則為 true；否則為 false，並說明做出此回答的理由，答案請用此 JSON 格式呈現:{{ "Result": {{ "add": true, "reason": "理由描述" }} }}'},
         config=config
     )
-    result = parser.invoke(response['output'])
-    return result if result else json.loads('{"Result":{}}')
+    return format_json(parser.invoke(response['output']))
 
 def generate_hw04(question):
     llm = create_llm()
@@ -155,8 +146,7 @@ def generate_hw04(question):
         'image_url': {'url': f'data:image/jpeg;base64,{get_image("./baseball.png")}'}
     }]))
     response = llm.invoke(messages)
-    result = JsonOutputParser().invoke(response)
-    return result if result else json.loads('{"Result": {}}')
+    return format_json(JsonOutputParser().invoke(response))
     
 def demo(question):
     llm = AzureChatOpenAI(
